@@ -1,0 +1,68 @@
+use std::{
+    any::Any,
+    sync::{Arc, RwLock},
+    thread,
+};
+
+fn dispatch<T, E>(lock: &Arc<RwLock<T>>, task: &dyn Fn(Arc<RwLock<T>>) -> Reault<(), Box<E>>)
+where
+T: Send,
+    E: Any + Send,
+{
+    let task = |f: &dyn Fn(Arc<RwLock<i32>>) -> Result<(), Box<dyn Any + Send>>| {
+        let c_lock = Arc::clone(&lock);
+        thread::spawn(move || {
+            f(c_lock);
+        })
+        .join()?;
+    };
+}
+
+fn main() -> Result<(), Box<dyn Any + Send>> {
+    let lock = Arc::new(RwLock::new(1));
+    let task = |f: &dyn Fn(Arc<RwLock<i32>>) -> Result<(), Box<dyn Any + Send>>| {
+        let c_lock = Arc::clone(&lock);
+        thread::spawn(move || {
+            f(c_lock);
+        })
+        .join()?;
+    };
+
+    let c_lock = Arc::clone(&lock);
+    thread::spawn(move || {
+        let result = c_lock.read();
+        println!("Thread 1 {{ Read: {:?} }}", result);
+    })
+    .join()?;
+
+    let c_lock = Arc::clone(&lock);
+    thread::spawn(move || {
+        let mut n = c_lock.write().unwrap();
+        *n = 2;
+        println!("Thread 2 {{ Write: {:?} }}", n);
+    })
+    .join()?;
+
+    let c_lock = Arc::clone(&lock);
+    thread::spawn(move || {
+        let result = c_lock.read();
+        println!("Thread 3 {{ Read: {:?} }}", result);
+    })
+    .join()?;
+
+    let c_lock = Arc::clone(&lock);
+    thread::spawn(move || {
+        let result = c_lock.read();
+        println!("Thread 4 {{ Read: {:?} }}", result);
+    })
+    .join()?;
+
+    let c_lock = Arc::clone(&lock);
+    thread::spawn(move || {
+        let result = c_lock.read();
+        println!("Thread 5 {{ Read: {:?} }}", result);
+    })
+    .join()?;
+
+    Ok(())
+}
